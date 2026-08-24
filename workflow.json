@@ -1,0 +1,401 @@
+{
+  "name": "Radar de Vagas",
+  "nodes": [
+    {
+      "parameters": {
+        "chatId": "SEU_CHAT_ID",
+        "text": "={{ $json.texto }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -544,
+        -304
+      ],
+      "id": "942e670f-774b-452b-817b-4b85d5d3316f",
+      "name": "Send a text message",
+      "webhookId": "486506b0-7664-467e-af49-9a6937f12376",
+      "credentials": {
+        "telegramApi": {
+          "id": "vhCIKVwRrOrV4Ujv",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1488,
+        -592
+      ],
+      "id": "07045bb7-f723-4b78-84d7-97c7a60725c3",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.adzuna.com/v1/api/jobs/br/search/1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "what",
+              "value": "estágio"
+            },
+            {
+              "name": "what_or",
+              "value": "TI desenvolvimento dados inteligência artificial"
+            },
+            {
+              "name": "where",
+              "value": ""
+            },
+            {
+              "name": "results_per_page",
+              "value": "50"
+            },
+            {
+              "name": "max_days_old",
+              "value": "7"
+            },
+            {
+              "name": "sort_by",
+              "value": "relevance"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -1264,
+        -752
+      ],
+      "id": "39c924a2-eeaa-4634-987f-cee36c76095e",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "Li5gRReaa6yKY5Az",
+          "name": "Custom Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transforma a resposta da Adzuna em 1 item por vaga, só com o que interessa\nconst results = $input.first().json.results ?? [];\n\nreturn results.map(v => ({\n  json: {\n    id: 'a' + String(v.id),\n    titulo: v.title,\n    empresa: v.company?.display_name ?? 'Não informada',\n    local: v.location?.display_name ?? 'Não informada',\n    link: v.redirect_url,\n    descricao: (v.description ?? '').slice(0, 600),\n    publicada_em: v.created,\n    fonte: 'Adzuna',\n  },\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        -752
+      ],
+      "id": "3c9c21af-ed74-4d7a-95fd-058e0e9bfd31",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        -592
+      ],
+      "id": "3e53c012-1962-424b-b3cc-81100193ffaf",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "vagas",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        -592
+      ],
+      "id": "8597da26-5eb7-47b1-b57a-bbfebbc95c5d",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Você é um assistente de recrutamento criterioso. Avalie o fit entre o candidato e cada vaga.\n\nPERFIL DO CANDIDATO:\n- Estudante de <SUA ÁREA> na <SUA UNIVERSIDADE> (desde <ANO>), em <SUA CIDADE/UF>\n- Busca ESTÁGIO em tecnologia: <SUAS ÁREAS — ex.: desenvolvimento, dados, IA/automação>\n- Linguagens: <SUAS LINGUAGENS — ex.: Python, JavaScript, SQL, C#>\n- Frameworks/Back-end: <SEUS FRAMEWORKS — ex.: .NET, Node.js>\n- Bancos de dados: <SEUS BANCOS — ex.: PostgreSQL, MySQL>\n- Ferramentas: <SUAS FERRAMENTAS — ex.: Git, GitHub, VS Code>\n- Experiência: <SUA EXPERIÊNCIA — ex.: iniciação científica, projetos pessoais>\n- Idiomas: <SEUS IDIOMAS — ex.: inglês avançado>\n- Localização: mora em <SUA CIDADE/UF> — aceita presencial/híbrido SOMENTE em <SUA CIDADE/UF>; remoto de qualquer lugar do Brasil\n\nVAGAS (JSON):\n{{ JSON.stringify($json.vagas) }}\n\nTAREFA: para CADA vaga, atribua um score de fit de 0 a 10 e um motivo de 1 frase\ncitando requisitos que batem ou faltam.\n\nRESPONDA APENAS com um array JSON válido, sem markdown, sem texto extra:\n[{\"id\": \"...\", \"score\": 0, \"motivo\": \"...\", \"destaque\": false}]\n\nRegras:\n- \"destaque\" = true somente se score >= 8\n- Vaga que não é estágio (efetivo, sênior, pleno) recebe score <= 3\n- Vaga fora da área de tecnologia recebe score <= 2\n- Use o MESMO \"id\" que veio no JSON da vaga",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        -1440,
+        -304
+      ],
+      "id": "ab9a5913-aa86-4a12-b3a8-4f2268d0b45b",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {},
+        "modelName": "models/gemini-3.6-flash"
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        -1440,
+        -144
+      ],
+      "id": "2ecaa7c3-25d4-432c-9013-19d6e09b9761",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "RZGE6pgU4iYNYrEv",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Junta a avaliação da IA com os dados originais das vagas e ordena por score\nconst vagas = $('Aggregate').first().json.vagas;\nconst bruto = $input.first().json.text ?? $input.first().json.output ?? '';\n\nlet avaliacoes;\ntry {\n  // Remove cercas de código caso o modelo desobedeça o \"sem markdown\"\n  const limpo = String(bruto).replace(/```json|```/g, '').trim();\n  avaliacoes = JSON.parse(limpo);\n} catch (e) {\n  // Fallback: se o JSON vier quebrado, envia as vagas sem score em vez de perder o dia\n  return [{ json: { fallback: true, vagas } }];\n}\n\nconst porId = Object.fromEntries(avaliacoes.map(a => [String(a.id), a]));\nconst ranqueadas = vagas\n  .map(v => ({ ...v, ...(porId[String(v.id)] ?? { score: 0, motivo: 'Sem avaliação', destaque: false }) }))\n  .sort((a, b) => b.score - a.score);\n\nreturn [{ json: { fallback: false, vagas: ranqueadas } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1040,
+        -304
+      ],
+      "id": "564ad549-1ba9-43d1-94a9-da4ed5a22e63",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { fallback, vagas } = $input.first().json;\nconst hoje = new Date().toLocaleDateString('pt-BR');\n\nif (fallback) {\n  const linhas = vagas.slice(0, 10).map(v => `• ${v.titulo} — ${v.empresa}\\n${v.link}`);\n  return [{ json: { texto: `📡 Radar de Vagas — ${hoje}\\n⚠️ IA indisponível hoje; vagas sem ranking:\\n\\n${linhas.join('\\n\\n')}` } }];\n}\n\nconst NOTA_MINIMA = 4; // ajuste fino: só vagas com score >= 4 entram na mensagem\nconst medalha = i => ['🥇', '🥈', '🥉'][i] ?? '▪️';\nconst fontes = [...new Set(vagas.map(v => v.fonte))];\n\nconst mensagens = fontes.map(f => {\n  const doFonte = vagas.filter(v => v.fonte === f && v.score >= NOTA_MINIMA).slice(0, 10);\n  if (doFonte.length === 0) return null; // fonte sem vaga boa hoje = sem mensagem dela\n  const linhas = doFonte.map((v, i) =>\n    `${medalha(i)} <b>${v.score}/10 — ${v.titulo}</b>\\n${v.empresa} · ${v.local}\\n<i>${v.motivo}</i>\\n<a href=\"${v.link}\">Ver vaga</a>`\n  );\n  return { json: { texto: `📡 <b>Radar de Vagas — ${f} — ${hoje}</b>\\n${doFonte.length} vaga(s) com fit:\\n\\n${linhas.join('\\n\\n')}` } };\n}).filter(Boolean);\n\nif (mensagens.length === 0) {\n  return [{ json: { texto: `📡 Radar de Vagas — ${hoje}\\nNenhuma vaga nova com fit hoje. Radar segue de olho. 👀` } }];\n}\n\nreturn mensagens;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -784,
+        -304
+      ],
+      "id": "8f8ec789-0474-48a8-aae9-bfeb92a21d94",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://br.jooble.org/api/SUA_CHAVE_JOOBLE",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ keywords: \"estágio TI\", location: \"\", datecreatedfrom: new Date(Date.now() - 7*86400000).toISOString().slice(0,10) }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -1264,
+        -576
+      ],
+      "id": "89283937-2478-472c-ab66-17b77be8998a",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const jobs = $input.first().json.jobs ?? [];\nreturn jobs.map(j => ({\n  json: {\n    id: 'j' + String(j.id).replace(/[^0-9]/g, ''),\n    titulo: j.title,\n    empresa: j.company || 'Não informada',\n    local: j.location || 'Não informada',\n    link: j.link,\n    descricao: String(j.snippet ?? '').replace(/<[^>]+>/g, '').slice(0, 600),\n    publicada_em: j.updated,\n    fonte: 'Jooble',\n  },\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        -576
+      ],
+      "id": "64b6dd6c-cfdd-49ca-aa22-c5c49381403e",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -720,
+        -672
+      ],
+      "id": "d7a96b27-a3f8-4e30-9bae-c1ab778fe04d",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "5a5ced8b-3a00-4565-9e8a-b4145f8614ba",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dfdc8b1d70b8ace9aa90bc1888efaca9e20d56b8850737585caae458c88802c7"
+  },
+  "nodeGroups": [],
+  "id": "WmZHTdY29YmuN68K",
+  "tags": []
+}

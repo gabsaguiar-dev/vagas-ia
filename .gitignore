@@ -1,0 +1,19 @@
+# Documentacao interna de aprendizado — nunca sobe pro GitHub
+docs/
+
+# Backups de workflow (export bruto do n8n, contem chat_id)
+backup/
+
+# Midia para posts (video/prints originais)
+media/
+
+# Credenciais e configuracoes locais
+.env
+*.env
+credenciais*
+
+# Anotacoes de estudo
+notas*
+anotacoes*
+
+desktop.ini
