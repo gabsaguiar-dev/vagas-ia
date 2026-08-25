@@ -8,13 +8,7 @@ Você configura o seu perfil uma vez, aponta para as APIs gratuitas de vagas, e 
 todo dia só o que realmente tem a ver com você — em vez de navegar por dezenas de
 anúncios manualmente.
 
-```
-Agendamento (diário) ─┬─ API Adzuna  → normaliza ─┐
-                      └─ API Jooble  → normaliza ─┴─ junta → remove duplicados
-                          → IA (Gemini) avalia todas as vagas em 1 chamada
-                          → filtra por nota mínima + ordena por score
-                          → 1 mensagem no Telegram por fonte
-```
+![Fluxo do workflow](img/workflow.png)
 
 ## Como funciona
 
